@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical 3D Anatomy Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            height: 100vh;
+            overflow: hidden;
+            color: white;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .controls {
+            width: 320px;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(20px);
+            padding: 25px;
+            overflow-y: auto;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 2px 0 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .viewer {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0f0f1e 100%);
+        }
+
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        h1 {
+            color: #fff;
+            margin-bottom: 25px;
+            font-size: 28px;
+            text-align: center;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .control-section h3 {
+            color: #4fc3f7;
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .anatomy-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 12px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .anatomy-toggle:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .anatomy-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+
+        .color-indicator {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: #4fc3f7;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(24px);
+        }
+
+        .file-drop-zone {
+            border: 2px dashed rgba(79, 195, 247, 0.5);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            background: rgba(79, 195, 247, 0.05);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+
+        .file-drop-zone:hover {
+            border-color: #4fc3f7;
+            background: rgba(79, 195, 247, 0.1);
+        }
+
+        .file-drop-zone.dragover {
+            border-color: #29b6f6;
+            background: rgba(41, 182, 246, 0.2);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .slider-group {
+            margin: 15px 0;
+        }
+
+        .slider-group label {
+            display: block;
+            color: #e0e0e0;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4fc3f7;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(79, 195, 247, 0.4);
+        }
+
+        .value-display {
+            color: #b0b0b0;
+            font-size: 12px;
+            text-align: right;
+            margin-top: 2px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(45deg, #4fc3f7, #29b6f6);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 6px 0;
+            box-shadow: 0 4px 12px rgba(79, 195, 247, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(79, 195, 247, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 12px 0;
+            font-size: 14px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .status.info {
+            background: rgba(79, 195, 247, 0.2);
+            color: #4fc3f7;
+            border: 1px solid rgba(79, 195, 247, 0.3);
+        }
+
+        .status.success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .status.error {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #4fc3f7;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .model-info {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .model-info .stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 4px 0;
+        }
+
+        .anatomical-controls {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .quick-load {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .quick-load button {
+            font-size: 12px;
+            padding: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <h1>🧠 Medical 3D Viewer</h1>
+            
+            <div class="control-section">
+                <h3>📁 Load Your Models</h3>
+                
+                <div class="file-drop-zone" id="dropZone">
+                    <div>Drop GLTF files here</div>
+                    <div style="font-size: 12px; margin-top: 5px; opacity: 0.7;">or click to browse</div>
+                </div>
+                <input type="file" id="fileInput" accept=".gltf,.glb" multiple>
+                
+                <div class="quick-load">
+                    <button onclick="loadModel('skull.gltf', 'skull')">Load Skull</button>
+                    <button onclick="loadModel('brain.gltf', 'brain')">Load Brain</button>
+                    <button onclick="loadModel('vessels.gltf', 'vessels')">Load Vessels</button>
+                    <button onclick="loadAllModels()">Load All</button>
+                </div>
+                
+                <div id="status" class="status info">Ready to load medical models</div>
+            </div>
+
+            <div class="control-section">
+                <h3>🔬 Anatomy Layers</h3>
+                
+                <div class="anatomy-toggle">
+                    <div class="anatomy-label">
+                        <div class="color-indicator" style="background: #f5f5dc;"></div>
+                        <span>Skull</span>
+                    </div>
+                    <div class="toggle-switch active" data-model="skull"></div>
+                </div>
+                
+                <div class="anatomy-toggle">
+                    <div class="anatomy-label">
+                        <div class="color-indicator" style="background: #d4a5a5;"></div>
+                        <span>Brain Tissue</span>
+                    </div>
+                    <div class="toggle-switch active" data-model="brain"></div>
+                </div>
+                
+                <div class="anatomy-toggle">
+                    <div class="anatomy-label">
+                        <div class="color-indicator" style="background: #cc3333;"></div>
+                        <span>Blood Vessels</span>
+                    </div>
+                    <div class="toggle-switch active" data-model="vessels"></div>
+                </div>
+                
+                <div class="anatomical-controls">
+                    <div class="slider-group">
+                        <label for="globalOpacity">Overall Opacity</label>
+                        <input type="range" id="globalOpacity" min="0.1" max="1" step="0.1" value="1">
+                        <div class="value-display" id="opacityValue">1.0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>🎮 Camera Controls</h3>
+                <button onclick="resetCamera()">Reset View</button>
+                <button onclick="fitToView()">Fit to View</button>
+                <button onclick="toggleAutoRotate()">Auto Rotate</button>
+                
+                <div class="slider-group">
+                    <label for="cameraSpeed">Camera Speed</label>
+                    <input type="range" id="cameraSpeed" min="0.1" max="2" step="0.1" value="1">
+                    <div class="value-display" id="speedValue">1.0</div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>💡 Lighting</h3>
+                
+                <div class="slider-group">
+                    <label for="ambientIntensity">Ambient Light</label>
+                    <input type="range" id="ambientIntensity" min="0" max="2" step="0.1" value="0.6">
+                    <div class="value-display" id="ambientValue">0.6</div>
+                </div>
+                
+                <div class="slider-group">
+                    <label for="directionalIntensity">Directional Light</label>
+                    <input type="range" id="directionalIntensity" min="0" max="2" step="0.1" value="1">
+                    <div class="value-display" id="directionalValue">1.0</div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>📊 Model Info</h3>
+                <div id="modelInfo" class="model-info">
+                    <div class="stat"><span>Models Loaded:</span><span id="modelCount">0</span></div>
+                    <div class="stat"><span>Total Vertices:</span><span id="vertexCount">0</span></div>
+                    <div class="stat"><span>Total Triangles:</span><span id="triangleCount">0</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="viewer">
+            <canvas id="canvas"></canvas>
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <div>Loading 3D Model...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js with proper imports -->
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script>
+        class MedicalViewer {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                this.models = {};
+                this.ambientLight = null;
+                this.directionalLight = null;
+                this.autoRotate = false;
+                
+                this.init();
+                this.setupControls();
+                this.setupDropZone();
+                this.animate();
+            }
+
+            init() {
+                // Scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x0a0a0a);
+
+                // Camera
+                const canvas = document.getElementById('canvas');
+                this.camera = new THREE.PerspectiveCamera(
+                    75, 
+                    canvas.clientWidth / canvas.clientHeight, 
+                    0.1, 
+                    1000
+                );
+                this.camera.position.set(5, 5, 5);
+
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({ 
+                    canvas: canvas,
+                    antialias: true,
+                    alpha: true
+                });
+                this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                this.renderer.outputEncoding = THREE.sRGBEncoding;
+                this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+                // Controls
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.autoRotate = false;
+                this.controls.autoRotateSpeed = 1.0;
+
+                // Lighting
+                this.ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                this.scene.add(this.ambientLight);
+
+                this.directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+                this.directionalLight.position.set(5, 5, 5);
+                this.directionalLight.castShadow = true;
+                this.scene.add(this.directionalLight);
+
+                // Additional lights for medical visualization
+                const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+                fillLight.position.set(-5, -5, -5);
+                this.scene.add(fillLight);
+
+                const backLight = new THREE.DirectionalLight(0x4fc3f7, 0.2);
+                backLight.position.set(0, 0, -10);
+                this.scene.add(backLight);
+
+                // Handle resize
+                window.addEventListener('resize', () => this.onWindowResize(), false);
+            }
+
+            setupControls() {
+                // Toggle switches
+                document.querySelectorAll('.toggle-switch').forEach(toggle => {
+                    toggle.addEventListener('click', () => {
+                        toggle.classList.toggle('active');
+                        const modelName = toggle.dataset.model;
+                        this.toggleModel(modelName, toggle.classList.contains('active'));
+                    });
+                });
+
+                // Sliders
+                this.setupSlider('globalOpacity', (value) => this.setGlobalOpacity(value));
+                this.setupSlider('cameraSpeed', (value) => {
+                    this.controls.rotateSpeed = value;
+                    this.controls.zoomSpeed = value;
+                    this.controls.panSpeed = value;
+                });
+                this.setupSlider('ambientIntensity', (value) => {
+                    this.ambientLight.intensity = value;
+                });
+                this.setupSlider('directionalIntensity', (value) => {
+                    this.directionalLight.intensity = value;
+                });
+            }
+
+            setupSlider(id, callback) {
+                const slider = document.getElementById(id);
+                const valueDisplay = document.getElementById(id.replace('Intensity', 'Value').replace('Speed', 'Value').replace('Opacity', 'Value'));
+                
+                slider.addEventListener('input', (e) => {
+                    const value = parseFloat(e.target.value);
+                    if (valueDisplay) valueDisplay.textContent = value.toFixed(1);
+                    callback(value);
+                });
+            }
+
+            setupDropZone() {
+                const dropZone = document.getElementById('dropZone');
+                const fileInput = document.getElementById('fileInput');
+
+                dropZone.addEventListener('click', () => fileInput.click());
+
+                dropZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add('dragover');
+                });
+
+                dropZone.addEventListener('dragleave', () => {
+                    dropZone.classList.remove('dragover');
+                });
+
+                dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    this.handleFiles(files);
+                });
+
+                fileInput.addEventListener('change', (e) => {
+                    this.handleFiles(e.target.files);
+                });
+            }
+
+            handleFiles(files) {
+                Array.from(files).forEach(file => {
+                    if (file.name.endsWith('.gltf') || file.name.endsWith('.glb')) {
+                        const modelName = this.getModelNameFromFile(file.name);
+                        this.loadModelFromFile(file, modelName);
+                    }
+                });
+            }
+
+            getModelNameFromFile(filename) {
+                if (filename.includes('skull')) return 'skull';
+                if (filename.includes('brain')) return 'brain';
+                if (filename.includes('vessel')) return 'vessels';
+                return 'model_' + Date.now();
+            }
+
+            async loadModelFromFile(file, modelName) {
+                this.showLoading(true);
+                this.updateStatus('Loading ' + modelName + '...', 'info');
+
+                try {
+                    const loader = new THREE.GLTFLoader();
+                    const url = URL.createObjectURL(file);
+                    
+                    const gltf = await new Promise((resolve, reject) => {
+                        loader.load(url, resolve, undefined, reject);
+                    });
+
+                    this.addModel(gltf.scene, modelName);
+                    this.updateStatus(modelName + ' loaded successfully!', 'success');
+                    URL.revokeObjectURL(url);
+
+                } catch (error) {
+                    console.error('Error loading model:', error);
+                    this.updateStatus('Error loading ' + modelName, 'error');
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            addModel(model, name) {
+                // Remove existing model with same name
+                if (this.models[name]) {
+                    this.scene.remove(this.models[name]);
+                }
+
+                // Setup materials for medical visualization
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        
+                        if (child.material) {
+                            child.material.transparent = true;
+                            child.material.opacity = 1.0;
+                        }
+                    }
+                });
+
+                this.models[name] = model;
+                this.scene.add(model);
+                
+                this.updateModelInfo();
+                this.fitToView();
+            }
+
+            toggleModel(modelName, visible) {
+                if (this.models[modelName]) {
+                    this.models[modelName].visible = visible;
+                }
+            }
+
+            setGlobalOpacity(opacity) {
+                Object.values(this.models).forEach(model => {
+                    model.traverse((child) => {
+                        if (child.isMesh && child.material) {
+                            child.material.opacity = opacity;
+                            child.material.transparent = opacity < 1.0;
+                        }
+                    });
+                });
+            }
+
+            updateModelInfo() {
+                let totalVertices = 0;
+                let totalTriangles = 0;
+                const modelCount = Object.keys(this.models).length;
+
+                Object.values(this.models).forEach(model => {
+                    model.traverse((child) => {
+                        if (child.isMesh && child.geometry) {
+                            const geometry = child.geometry;
+                            if (geometry.attributes.position) {
+                                totalVertices += geometry.attributes.position.count;
+                            }
+                            if (geometry.index) {
+                                totalTriangles += geometry.index.count / 3;
+                            }
+                        }
+                    });
+                });
+
+                document.getElementById('modelCount').textContent = modelCount;
+                document.getElementById('vertexCount').textContent = totalVertices.toLocaleString();
+                document.getElementById('triangleCount').textContent = Math.round(totalTriangles).toLocaleString();
+            }
+
+            fitToView() {
+                const models = Object.values(this.models);
+                if (models.length === 0) return;
+
+                const box = new THREE.Box3();
+                models.forEach(model => box.expandByObject(model));
+
+                const size = box.getSize(new THREE.Vector3()).length();
+                const center = box.getCenter(new THREE.Vector3());
+
+                const distance = size * 1.2;
+                this.camera.position.copy(center);
+                this.camera.position.x += distance;
+                this.camera.position.y += distance * 0.5;
+                this.camera.position.z += distance;
+
+                this.camera.lookAt(center);
+                this.controls.target.copy(center);
+                this.controls.update();
+            }
+
+            showLoading(show) {
+                document.getElementById('loading').style.display = show ? 'block' : 'none';
+            }
+
+            updateStatus(message, type) {
+                const status = document.getElementById('status');
+                status.textContent = message;
+                status.className = `status ${type}`;
+            }
+
+            onWindowResize() {
+                const canvas = document.getElementById('canvas');
+                this.camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // Global functions for buttons
+        let viewer;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // Wait for THREE.js to load
+            if (typeof THREE !== 'undefined') {
+                viewer = new MedicalViewer();
+            } else {
+                console.error('THREE.js not loaded');
+            }
+        });
+
+        function loadModel(filename, modelName) {
+            if (!viewer) {
+                console.error('Viewer not initialized');
+                return;
+            }
+            
+            if (!filename.startsWith('outputs/')) {
+                filename = 'outputs/' + filename;
+            }
+            
+            viewer.showLoading(true);
+            viewer.updateStatus('Loading ' + modelName + '...', 'info');
+            
+            const loader = new THREE.GLTFLoader();
+            loader.load(filename, 
+                (gltf) => {
+                    viewer.addModel(gltf.scene, modelName);
+                    viewer.updateStatus(modelName + ' loaded!', 'success');
+                    viewer.showLoading(false);
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading', filename, error);
+                    viewer.updateStatus('Error loading ' + modelName + ' - try drag & drop', 'error');
+                    viewer.showLoading(false);
+                }
+            );
+        }
+
+        function loadAllModels() {
+            if (!viewer) return;
+            loadModel('skull.gltf', 'skull');
+            setTimeout(() => loadModel('brain.gltf', 'brain'), 500);
+            setTimeout(() => loadModel('vessels.gltf', 'vessels'), 1000);
+        }
+
+        function resetCamera() {
+            if (!viewer) return;
+            viewer.camera.position.set(5, 5, 5);
+            viewer.camera.lookAt(0, 0, 0);
+            viewer.controls.reset();
+        }
+
+        function fitToView() {
+            if (!viewer) return;
+            viewer.fitToView();
+        }
+
+        function toggleAutoRotate() {
+            if (!viewer) return;
+            viewer.controls.autoRotate = !viewer.controls.autoRotate;
+        }
+    </script>
+</body>
+</html>
