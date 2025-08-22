@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+medical3d_env/
+venv/
+env/
+
+# Data files
+uploads/
+outputs/
+sample_data/
+temp/
+*.dcm
+*.nrrd
+*.nii
+*.nii.gz
+*.stl
+*.obj
+*.gltf
+*.glb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

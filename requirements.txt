@@ -1,0 +1,20 @@
+# Core medical imaging
+SimpleITK>=2.2.0
+vtk>=9.2.0
+numpy>=1.21.0
+
+# Web API
+flask>=2.3.0
+flask-cors>=4.0.0
+
+# Utilities
+pathlib
+Pillow>=9.0.0
+
+# Optional: Development tools
+jupyter>=1.0.0
+matplotlib>=3.5.0
+
+# Optional: AI/ML for advanced segmentation
+# torch>=1.13.0
+# monai>=1.1.0
